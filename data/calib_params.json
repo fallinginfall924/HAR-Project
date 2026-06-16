@@ -1,0 +1,21 @@
+{
+    "metadata": {
+        "device": "ESP32-S3 + MPU6050",
+        "calibration_date": "2026-06-16",
+        "description": "包含加速度计六面法、磁力计椭球拟合及陀螺仪Allan方差分析结果"
+    },
+    "accelerometer": {
+        "bias": [42.0, 176.0, 204.0],
+        "scale_factor": [1.0011, 1.0000, 1.0044],
+        "sensitivity_lsb_per_g": 16384
+    },
+    "magnetometer": {
+        "hard_iron_offset": [242.30, 125.14, -281.24],
+        "soft_iron_scale": [0.5951, 0.4152, 1.9896]
+    },
+    "gyro": {
+    	"static_bias": [-1.0046, 0.0, 0.0],
+    	"scale_factor": [1.0, 1.0, 1.0],
+    	"allan_variance_bi": 0.002524
+    }
+}
