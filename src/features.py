@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import welch
 
+
 # ================= 1. 特征提取工具函数 =================
 
 def extract_features(window_data):
@@ -99,12 +100,10 @@ if __name__ == "__main__":
         # 2. 遍历每个样本进行特征提取
         feature_list = []
         labels = []
-        sample_ids = []
+        subject_ids = []  # 新增：用于存储被试者ID
 
-        # 假设 CSV 格式为: ID, Label, AccX_0, AccX_1, ... AccZ_N
-        # 获取所有加速度列名 (排除 ID 和 Label)
+        # 获取所有加速度列名 (排除 ID, Label, Subject_ID)
         acc_cols = [c for c in df.columns if c.startswith('acc')]
-        num_points = len(acc_cols) // 3  # 每个轴的点数
 
         print(f"⏳ 正在处理 {len(df)} 个样本...")
 
@@ -120,20 +119,22 @@ if __name__ == "__main__":
             feats = extract_features(window_data)
             feature_list.append(feats)
             labels.append(row['label'])
-            sample_ids.append(row.name)
+            subject_ids.append(row['subject_id'])  # 新增：提取 subject_id
 
             if (idx + 1) % 50 == 0:
                 print(f"   进度: {idx + 1}/{len(df)}")
 
         # 3. 构建特征矩阵 DataFrame
         df_features = pd.DataFrame(feature_list)
-        df_features.insert(0, 'id', sample_ids)
+        # 注意：这里不再需要手动插入 'id' 列，除非你特别需要行号。
+        # 我们把 subject_id 和 label 放在最前面
+        df_features.insert(0, 'subject_id', subject_ids)  # 新增：插入 subject_id 列
         df_features.insert(1, 'label', labels)
 
         # 4. 保存结果
         df_features.to_csv(output_path, index=False)
         print("\n✅ 特征提取完成！")
         print(f"📊 输出文件: {output_path}")
-        print(f"📐 矩阵维度: {df_features.shape} (样本数: {df_features.shape[0]}, 特征数: {df_features.shape[1]-2})")
+        print(f"📐 矩阵维度: {df_features.shape} (样本数: {df_features.shape[0]}, 特征数: {df_features.shape[1] - 2})")
         print("\n👇 前 5 行数据预览:")
         print(df_features.head())

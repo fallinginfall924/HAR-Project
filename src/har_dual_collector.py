@@ -1,112 +1,113 @@
-import serial
 import json
-import time
 import os
 import numpy as np
+import pandas as pd
+import glob
 
 # ================= 【配置区】 =================
-COM_PORT = 'COM3'  # ⚠️【必改】你的 ESP32 串口号
-BAUD_RATE = 115200  # ⚠️【必改】波特率
+# ⚠️【必改】输入文件夹：存放所有原始数据CSV文件的文件夹路径
+INPUT_FOLDER = 'D:/HAR-Project/data/raw'
+# ⚠️【必改】输出文件夹：校准后数据保存的文件夹路径
+OUTPUT_FOLDER = 'D:/HAR-Project/data/calibrated'
+# 标定参数文件路径
 CALIB_FILE = 'calib_params.json'
 
 
 # ==============================================
 
 def load_calibration():
+    """加载标定参数"""
     if not os.path.exists(CALIB_FILE):
-        print(f"❌ 找不到 {CALIB_FILE}！将只保存原始数据。")
+        print(f"❌ 错误：找不到标定参数文件 '{CALIB_FILE}'！")
         return None
-    with open(CALIB_FILE, 'r') as f:
-        print("✅ 成功加载标定参数文件")
+    with open(CALIB_FILE, 'r', encoding='utf-8') as f:
+        print(f"✅ 成功加载标定参数文件: {CALIB_FILE}")
         return json.load(f)
 
 
 def apply_calibration(raw_data, calib_params):
-    """将原始 LSB 转换为物理单位"""
-    if not calib_params: return raw_data
+    """
+    将一行原始数据 (list) 转换为校准后的数据 (list)
+    """
+    if not calib_params:
+        return raw_data
 
     acc_raw = np.array(raw_data[0:3])
     gyro_raw = np.array(raw_data[3:6])
 
-    # 加速度计转 g
+    # --- 1. 加速度计校准 ---
     acc_bias = np.array(calib_params['accelerometer']['bias'])
     acc_scale = np.array(calib_params['accelerometer']['scale_factor'])
     sensitivity_acc = calib_params['accelerometer'].get('sensitivity_lsb_per_g', 16384.0)
     acc_calibrated = ((acc_raw - acc_bias) / acc_scale) / sensitivity_acc
 
-    # 陀螺仪转 deg/s
-    gyro_bias = np.array(calib_params['gyroscope']['static_bias'])
+    # --- 2. 陀螺仪校准 ---
+    # ⚠️【关键修改】键名 'gyro' 与您提供的 JSON 文件保持一致
+    gyro_bias = np.array(calib_params['gyro']['static_bias'])
     sensitivity_gyro = 131.0
     gyro_calibrated = (gyro_raw - gyro_bias) / sensitivity_gyro
 
-    # 磁力计(暂不处理)
+    # --- 3. 磁力计 (暂不处理) ---
     mag_calibrated = raw_data[6:9]
 
     return list(acc_calibrated) + list(gyro_calibrated) + list(mag_calibrated)
 
 
-if __name__ == "__main__":
-    calib_params = load_calibration()
-    os.makedirs('har_dataset', exist_ok=True)
-
-    # --- 1. 交互式输入信息 ---
-    subject_id = input("👤 请输入被试编号 (如 S01): ").strip()
-    activity_label = input("🏷️ 请输入当前活动标签 (如 WALKING): ").strip()
-
-    timestamp_str = str(int(time.time()))
-
-    # 定义两个文件名
-    raw_filename = f"har_dataset/RAW_{subject_id}_{activity_label}_{timestamp_str}.csv"
-    calib_filename = f"har_dataset/CALIB_{subject_id}_{activity_label}_{timestamp_str}.csv"
-
-    print(f"\n💾 即将生成两份数据:")
-    print(f"   [Raw]   -> {raw_filename}")
-    print(f"   [Calib] -> {calib_filename}")
-    print("\n🎬 准备就绪！按回车键 [Enter] 开始采集，再按一次 [Ctrl+C] 停止...")
-    input()
-
-    # --- 2. 打开串口与两个 CSV 文件 ---
-    ser = serial.Serial(COM_PORT, BAUD_RATE, timeout=1)
-    raw_file = open(raw_filename, 'w')
-    calib_file = open(calib_filename, 'w')
-
-    # 写入表头
-    header = "timestamp,subject_id,activity_label,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,mag_x,mag_y,mag_z\n"
-    raw_file.write(header)
-    calib_file.write(header)
-
-    count = 0
-    print("▶️ 正在双轨采集...")
-
+def process_single_file(input_filepath, output_filepath, calib_params):
+    """处理单个文件的函数"""
     try:
-        while True:
-            line = ser.readline().decode('utf-8', errors='ignore').strip()
-            if not line: continue
+        df_raw = pd.read_csv(input_filepath)
+    except Exception as e:
+        print(f"   ❌ 读取文件失败: {e}")
+        return
 
-            parts = line.split(',')
-            if len(parts) >= 9:
-                try:
-                    raw_data = [float(x) for x in parts[:9]]
-                    ts = time.time()
-                    base_info = f"{ts},{subject_id},{activity_label}"
+    # 准备输出目录
+    os.makedirs(os.path.dirname(output_filepath), exist_ok=True)
 
-                    # 写入 Raw 文件 (原封不动)
-                    raw_file.write(f"{base_info}," + ",".join(map(str, raw_data)) + "\n")
+    header = "timestamp,subject_id,activity_label,acc_x,acc_y,acc_z,gyro_x,gyro_y,gyro_z,mag_x,mag_y,mag_z"
 
-                    # 计算并写入 Calib 文件
-                    calibrated_data = apply_calibration(raw_data, calib_params)
-                    calib_file.write(f"{base_info}," + ",".join(map(str, calibrated_data)) + "\n")
+    with open(output_filepath, 'w') as f:
+        f.write(header + '\n')
 
-                    count += 1
-                    if count % 100 == 0:
-                        print(f"   📊 已采集 {count} 条数据...", end='\r')
-                except ValueError:
-                    continue
+        count = 0
+        for _, row in df_raw.iterrows():
+            raw_sensor_data = row[
+                ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z', 'mag_x', 'mag_y', 'mag_z']].tolist()
+            calibrated_data = apply_calibration(raw_sensor_data, calib_params)
+            base_info = f"{row['timestamp']},{row['subject_id']},{row['activity_label']}"
+            f.write(f"{base_info}," + ",".join(map(str, calibrated_data)) + "\n")
+            count += 1
+    print(f"   ✅ 完成: {os.path.basename(input_filepath)} (处理了 {count} 条数据)")
 
-    except KeyboardInterrupt:
-        print("\n\n⏹️ 采集已手动停止。")
-    finally:
-        ser.close()
-        raw_file.close()
-        calib_file.close()
-        print(f"✅ 完成！共采集 {count} 条数据，两套文件已安全保存。")
+
+if __name__ == "__main__":
+    # 1. 加载标定参数
+    calib_params = load_calibration()
+    if calib_params is None:
+        exit()
+
+    # 2. 查找所有需要处理的文件
+    # 使用 glob 查找输入文件夹下所有以 RAW_ 开头，以 .csv 结尾的文件
+    search_pattern = os.path.join(INPUT_FOLDER, 'RAW_*.csv')
+    file_list = glob.glob(search_pattern)
+
+    if not file_list:
+        print(f"⚠️ 在 '{INPUT_FOLDER}' 中未找到任何以 'RAW_*.csv' 命名的文件。")
+        print(f"   请检查路径是否正确，或文件是否存在。")
+        exit()
+
+    print(f"🔍 在 '{INPUT_FOLDER}' 中找到 {len(file_list)} 个文件，开始批量处理...")
+
+    # 3. 逐个处理文件
+    for i, input_file in enumerate(file_list):
+        # 构造输出文件路径
+        # 例如：输入是 D:/.../raw_data/RAW_S01_...csv
+        # 输出是 D:/.../calib_data/CALIB_S01_...csv
+        filename = os.path.basename(input_file)
+        output_filename = filename.replace('RAW_', 'CALIB_', 1)
+        output_file = os.path.join(OUTPUT_FOLDER, output_filename)
+
+        print(f"\n[{i + 1}/{len(file_list)}] 正在处理: {filename}")
+        process_single_file(input_file, output_file, calib_params)
+
+    print("\n🎉 所有文件处理完毕！")

@@ -24,11 +24,9 @@ def load_and_prepare_data(path):
     print(f"📂 正在加载数据: {path}")
     df = pd.read_csv(path)
 
-    # 假设 'id' 和 'label' 是前两列，其余为特征
-    # 请根据你的 feature_matrix.csv 实际列名进行调整
-    # 这里假设列名为 'id', 'label', 'mean_x', 'std_mag', ...
-    if 'id' in df.columns:
-        df = df.drop(columns=['id'])
+    # 根据实际数据，删除 'subject_id' 列，因为它不是模型特征
+    if 'subject_id' in df.columns:
+        df = df.drop(columns=['subject_id'])
 
     y = df['label']
     X = df.drop(columns=['label'])

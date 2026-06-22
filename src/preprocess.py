@@ -95,7 +95,7 @@ def main():
 
     # --- 2. 【任务 S】生成预处理前后波形对比图 ---
     # 我们拿 RUNNING 文件来做波形对比演示
-    sample_file = os.path.join(DATA_DIR, 'CALIB_RAW_S01_RUNNING_MOCK.csv')
+    sample_file = os.path.join(DATA_DIR, 'CALIB_S01_RUNNING_MOCK_01.csv')
     if os.path.exists(sample_file):
         print("🎨 正在生成预处理前后波形对比图...")
         df_sample = pd.read_csv(sample_file)
@@ -149,12 +149,13 @@ def main():
     WINDOW_SIZE_SEC = 2.56
     OVERLAP = 0.5
 
-    all_windows, all_labels = [], []
+    all_windows, all_labels, all_subjects = [], [], []
     for filename in os.listdir(DATA_DIR):
         if filename.endswith('.csv'):
             df = pd.read_csv(os.path.join(DATA_DIR, filename))
             acc_data = df[['acc_x', 'acc_y', 'acc_z']].values
             act_labels_str = df['activity_label'].values
+            subject_id = df['subject_id'].iloc[0]  # 提取被试者编号
 
             try:
                 act_labels_num = np.array([label_mapping[l] for l in act_labels_str])
@@ -169,6 +170,7 @@ def main():
             if len(windows) > 0:
                 all_windows.append(windows)
                 all_labels.append(win_labels)
+                all_subjects.extend([subject_id] * len(windows))  # 每个窗口对应一个subject_id
 
     if not all_windows:
         print("❌ 没有提取到任何有效窗口！")
@@ -183,13 +185,14 @@ def main():
     column_names = [f'{ch}_{i}' for i in range(win_size) for ch in ['acc_x', 'acc_y', 'acc_z']]
     df_final = pd.DataFrame(flattened_windows, columns=column_names)
     df_final['label'] = final_labels
+    df_final['subject_id'] = all_subjects  # 新增：保存被试者编号
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     df_final.to_csv(OUTPUT_FILE, index=False)
 
     print(f"\n🎉 最终数据集已保存至: {OUTPUT_FILE}")
     print(f"📊 总样本数: {len(df_final)}, 📐 特征维度: {len(column_names)}")
-
+    print(f"👥 包含被试者: {df_final['subject_id'].unique()}")
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,16 @@
+{
+  "RandomForest_Best_Params": {
+    "max_depth": null,
+    "min_samples_leaf": 1,
+    "min_samples_split": 5,
+    "n_estimators": 100
+  },
+  "RandomForest_Best_CV_Score": 0.9398126308536294,
+  "SVM_RBF_Best_Params": {
+    "kernel": "rbf",
+    "gamma": 0.021544346900318832,
+    "C": 35.93813663804626
+  },
+  "SVM_RBF_Best_CV_Score": 0.872427318262529,
+  "Final_Test_Accuracy": 0.9362139917695473
+}
