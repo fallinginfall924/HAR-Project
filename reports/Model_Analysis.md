@@ -53,7 +53,7 @@
 
 下图展示了随机森林随着训练样本增加，训练集与验证集准确率的变化情况。
 
-![Random Forest Learning Curve](./reports/figures/learning_curve_rf.png)
+![Random Forest Learning Curve](./figures/learning_curve_rf.png)
 
 **观察：**
 *   **收敛趋势**：随着训练样本从 200 增加到 1600，验证集准确率（红线）呈现缓慢上升并趋于稳定的趋势（约 0.94）。
@@ -63,7 +63,7 @@
 
 下图展示了 SVM (RBF) 在不同 `gamma` 值下的表现。
 
-![SVM Validation Curve](./reports/figures/validation_curve_svm_gamma.png)
+![SVM Validation Curve](./figures/validation_curve_svm_gamma.png)
 
 **观察：**
 *   **过拟合现象**：随着 `gamma` 增大（向右移动），训练集准确率（蓝线）持续上升接近 1.0，说明模型越来越复杂，开始记忆训练数据。
@@ -73,7 +73,7 @@
 
 基于随机森林模型的特征重要性排序。
 
-![Feature Importance](./reports/figures/feature_importance_rf_d7.png)
+![Feature Importance](./figures/feature_importance_rf_d7.png)
 
 **关键发现：**
 1.  **sma (信号幅值面积)** 是最重要的特征 (0.273)，说明动作的整体能量强度是区分不同行为的关键。
@@ -85,7 +85,7 @@
 
 调优后随机森林在测试集上的分类详情。
 
-![Confusion Matrix](./reports/figures/confusion_matrix_rf_tuned.png)
+![Confusion Matrix](./figures/confusion_matrix_rf_tuned.png)
 
 **分析：**
 *   **高准确率类别**：类别 1, 2, 3 的识别率达到了 100%（对角线全满，均为 81 个样本），说明这些动作的特征非常独特，极易区分。
